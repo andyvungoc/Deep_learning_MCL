@@ -1,3 +1,5 @@
+## This script is for training the binary classifer.
+
 import numpy as np
 import torch
 import torchvision 
@@ -11,8 +13,19 @@ import matplotlib.pyplot as plt
 from deep_learning_project.torchsampler.imbalanced import ImbalancedDatasetSampler
 from face_noface_networks import Net2, Net3
 import time 
+import random
 
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    # Make CuDNN deterministic (note: may slow things down a bit)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
+set_seed(42)
 train_dir = '/Users/alberthogsted/Desktop/DTU/5. Semester/Machine Learning and Data Analytics/Scripts/deep_learning_project/train_images'
 test_dir = '/Users/alberthogsted/Desktop/DTU/5. Semester/Machine Learning and Data Analytics/Scripts/deep_learning_project/test_images'
 print('Finished loading libs')
@@ -58,8 +71,7 @@ classes = ('noface', 'face')
 
 
 net = Net3()
-# ...existing code...
-# --- move model to device ---
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
 
@@ -148,54 +160,3 @@ with torch.no_grad():
         correct += (predicted == labels).sum().item()
 
 print(f'Accuracy of the network on test images: {100 * correct // total} %')
-
-# python
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-
-# ensure model in eval mode
-net.eval()
-
-# device of the model params
-device = next(net.parameters()).device
-
-num_classes = len(classes)
-cm = torch.zeros((num_classes, num_classes), dtype=torch.int64)
-
-with torch.no_grad():
-    for images, labels in test_loader:
-        images = images.to(device)
-        labels = labels.to(device)
-        outputs = net(images)
-        _, preds = torch.max(outputs, 1)
-        for t, p in zip(labels.view(-1), preds.view(-1)):
-            cm[t.long(), p.long()] += 1
-
-cm_np = cm.cpu().numpy()
-print("Confusion matrix (rows=true, cols=predicted):\n", cm_np)
-
-# plot matrix with counts and row-wise percentages
-fig, ax = plt.subplots(figsize=(6,6))
-im = ax.imshow(cm_np, cmap="Blues")
-ax.figure.colorbar(im, ax=ax)
-ax.set_xticks(np.arange(num_classes))
-ax.set_yticks(np.arange(num_classes))
-ax.set_xticklabels(classes, rotation=45, ha="right")
-ax.set_yticklabels(classes)
-ax.set_xlabel("Predicted label")
-ax.set_ylabel("True label")
-ax.set_title("Confusion matrix")
-
-row_sums = cm_np.sum(axis=1, keepdims=True)
-thresh = cm_np.max() / 2.0
-for i in range(num_classes):
-    for j in range(num_classes):
-        pct = (cm_np[i, j] / row_sums[i, 0]) if row_sums[i, 0] > 0 else 0.0
-        text = f"{cm_np[i,j]}\n{pct:.1%}"
-        ax.text(j, i, text, ha="center", va="center",
-                color="white" if cm_np[i, j] > thresh else "black")
-
-plt.tight_layout()
-plt.show()
-
